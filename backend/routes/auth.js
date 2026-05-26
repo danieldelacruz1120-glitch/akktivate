@@ -40,45 +40,47 @@ function safeUser(u) {
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Nombre, email y contraseña son obligatorios' });
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password)
+      return res.status(400).json({ error: 'Nombre, email y contraseña son obligatorios' });
+    if (password.length < 6)
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.trim().toLowerCase());
+    if (existing)
+      return res.status(409).json({ error: 'Ya existe una cuenta con ese email' });
+    const hash = await bcrypt.hash(password, 10);
+    const result = db.prepare(`
+      INSERT INTO users (name, email, password_hash, provider, xp_to_next)
+      VALUES (?, ?, ?, 'email', ?)
+    `).run(name.trim(), email.trim().toLowerCase(), hash, xpToNextLevel(1));
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+    res.status(201).json({ token: makeToken(user.id), user: safeUser(user) });
+  } catch (err) {
+    console.error('register error:', err.message);
+    res.status(500).json({ error: 'Error interno: ' + err.message });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
-  }
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.trim().toLowerCase());
-  if (existing) {
-    return res.status(409).json({ error: 'Ya existe una cuenta con ese email' });
-  }
-  const hash = await bcrypt.hash(password, 10);
-  const result = db.prepare(`
-    INSERT INTO users (name, email, password_hash, provider, xp_to_next)
-    VALUES (?, ?, ?, 'email', ?)
-  `).run(name.trim(), email.trim().toLowerCase(), hash, xpToNextLevel(1));
-
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
-  res.status(201).json({ token: makeToken(user.id), user: safeUser(user) });
 });
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email y contraseña son obligatorios' });
+  try {
+    const { email, password } = req.body;
+    if (!email || !password)
+      return res.status(400).json({ error: 'Email y contraseña son obligatorios' });
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase());
+    if (!user)
+      return res.status(401).json({ error: 'Email o contraseña incorrectos' });
+    if (user.provider !== 'email' && !user.password_hash)
+      return res.status(401).json({ error: `Esta cuenta usa ${user.provider} para iniciar sesión` });
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid)
+      return res.status(401).json({ error: 'Email o contraseña incorrectos' });
+    res.json({ token: makeToken(user.id), user: safeUser(user) });
+  } catch (err) {
+    console.error('login error:', err.message);
+    res.status(500).json({ error: 'Error interno: ' + err.message });
   }
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase());
-  if (!user) {
-    return res.status(401).json({ error: 'Email o contraseña incorrectos' });
-  }
-  if (user.provider !== 'email' && !user.password_hash) {
-    return res.status(401).json({ error: `Esta cuenta usa ${user.provider} para iniciar sesión` });
-  }
-  const valid = await bcrypt.compare(password, user.password_hash);
-  if (!valid) {
-    return res.status(401).json({ error: 'Email o contraseña incorrectos' });
-  }
-  res.json({ token: makeToken(user.id), user: safeUser(user) });
 });
 
 module.exports = router;
