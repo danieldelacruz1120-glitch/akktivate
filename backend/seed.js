@@ -133,7 +133,14 @@ async function seed() {
   console.log('\n   Inicia el servidor: npm run dev\n');
 }
 
-seed().catch(err => {
-  console.error('❌ Error en seed:', err.message);
-  process.exit(1);
-});
+// Si se ejecuta directamente (node seed.js), salir al terminar
+if (require.main === module) {
+  seed().catch(err => {
+    console.error('❌ Error en seed:', err.message);
+    process.exit(1);
+  });
+} else {
+  // Si se importa desde server.js, exportar la función
+  module.exports = seed;
+  seed().catch(err => console.error('❌ Error en auto-seed:', err.message));
+}

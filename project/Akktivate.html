@@ -4037,7 +4037,9 @@ window.AIInlineLauncher = AIInlineLauncher;
 
   <!-- ── Backend bridge — conecta el frontend con localhost:3001 ───── -->
   <script>
-  const AKK_API = 'http://localhost:3001/api';
+  const AKK_API = (window.location.hostname === 'localhost' || window.location.protocol === 'file:')
+    ? 'http://localhost:3001/api'
+    : 'https://akktivate-backend.onrender.com/api';
 
   window.AKK_BRIDGE = {
     token: localStorage.getItem('akk_token') || null,
