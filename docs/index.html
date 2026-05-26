@@ -2962,7 +2962,7 @@ function AuthScreen({ onAuth }) {
       await window.AKK_BRIDGE.afterAuth(data.token, data.user);
       onAuth({ name: data.user.name, email: data.user.email, skipOnboarding: isSignin || !!data.user.onboarded });
     } catch (e) {
-      alert('No se pudo conectar con el servidor.\n\nAsegúrate de que el backend está corriendo:\ncd ~/Downloads/akkktivate/backend && npm run dev');
+      alert('Error: ' + e.message + '\nURL: ' + (window.AKK_BRIDGE?.api || 'AKK_BRIDGE no definido'));
     } finally {
       setLoading(false);
     }
