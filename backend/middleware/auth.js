@@ -7,7 +7,8 @@ module.exports = function requireAuth(req, res, next) {
   }
   const token = header.slice(7);
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    const secret = process.env.JWT_SECRET || 'akktivate_secreto_xK9mP2qL8nR4wZ7vT1jY5bH6cF3sD0eA';
+    req.user = jwt.verify(token, secret);
     next();
   } catch {
     res.status(401).json({ error: 'Token inválido o caducado' });

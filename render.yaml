@@ -9,6 +9,6 @@ services:
       - key: NODE_ENV
         value: production
       - key: JWT_SECRET
-        generateValue: true
+        value: akktivate_secreto_xK9mP2qL8nR4wZ7vT1jY5bH6cF3sD0eA
       - key: GEMINI_API_KEY
         sync: false

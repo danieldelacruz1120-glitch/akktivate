@@ -6,7 +6,8 @@ const { db, xpToNextLevel } = require('../db');
 const router = express.Router();
 
 function makeToken(userId) {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
+  const secret = process.env.JWT_SECRET || 'akktivate_secreto_xK9mP2qL8nR4wZ7vT1jY5bH6cF3sD0eA';
+  return jwt.sign({ userId }, secret, { expiresIn: '30d' });
 }
 
 function safeUser(u) {
