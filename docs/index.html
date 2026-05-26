@@ -2948,7 +2948,7 @@ function AuthScreen({ onAuth }) {
       const body = isSignin
         ? { email: email.trim(), password: pwd }
         : { name: displayName, email: email.trim(), password: pwd };
-      const res = await fetch('http://localhost:3001/api/auth/' + (isSignin ? 'login' : 'register'), {
+      const res = await fetch(window.AKK_BRIDGE.api + '/auth/' + (isSignin ? 'login' : 'register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -4042,6 +4042,7 @@ window.AIInlineLauncher = AIInlineLauncher;
     : 'https://akktivate.onrender.com/api';
 
   window.AKK_BRIDGE = {
+    api: AKK_API,
     token: localStorage.getItem('akk_token') || null,
 
     // Llamada al backend después de login/register exitoso
