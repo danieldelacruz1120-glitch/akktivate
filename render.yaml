@@ -3,7 +3,7 @@ services:
     name: akktivate-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm install && npm rebuild better-sqlite3 --build-from-source
+    buildCommand: npm install && npm rebuild better-sqlite3 --build-from-source && node seed.js
     startCommand: node server.js
     envVars:
       - key: NODE_ENV

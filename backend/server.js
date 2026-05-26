@@ -2,20 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
-// Auto-seed si la base de datos está vacía (necesario en Render)
-function autoSeed() {
-  try {
-    const { db } = require('./db');
-    const count = db.prepare('SELECT COUNT(*) as n FROM users').get();
-    if (count.n === 0) {
-      console.log('Base de datos vacía — ejecutando seed automático...');
-      require('./seed');
-    }
-  } catch (e) {
-    console.error('Error en auto-seed:', e.message);
-  }
-}
-autoSeed();
 
 const app = express();
 
