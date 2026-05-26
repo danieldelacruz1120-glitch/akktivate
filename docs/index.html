@@ -2962,7 +2962,7 @@ function AuthScreen({ onAuth }) {
       await window.AKK_BRIDGE.afterAuth(data.token, data.user);
       onAuth({ name: data.user.name, email: data.user.email, skipOnboarding: isSignin || !!data.user.onboarded });
     } catch (e) {
-      alert('Error: ' + e.message + '\nURL: ' + (window.AKK_BRIDGE?.api || 'AKK_BRIDGE no definido'));
+      alert('No se pudo conectar. El servidor puede estar arrancando (plan gratuito).\n\nEspera 30 segundos y vuelve a intentarlo.');
     } finally {
       setLoading(false);
     }
@@ -4091,6 +4091,11 @@ window.AIInlineLauncher = AIInlineLauncher;
       } catch(e) {}
     },
 
+    // Despertar el servidor al cargar la página (plan gratuito se duerme)
+    warmup() {
+      fetch(AKK_API + '/health').catch(() => {});
+    },
+
     // Proxy al asistente Akko via backend (Gemini)
     async chat(messages, ctx) {
       if (!this.token) throw new Error('Sin sesión');
@@ -4104,6 +4109,9 @@ window.AIInlineLauncher = AIInlineLauncher;
       return d.reply;
     },
   };
+
+  // Despertar el servidor nada más cargar la página
+  window.AKK_BRIDGE.warmup();
   </script>
 
   <script type="text/babel">
