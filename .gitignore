@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Environment variables (contiene API keys y secretos)
+.env
+
+# Base de datos SQLite (se genera automáticamente)
+backend/akktivate.db
+backend/akktivate.db-shm
+backend/akktivate.db-wal
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Uploads
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Archivos temporales
+*.tmp
+*.swp

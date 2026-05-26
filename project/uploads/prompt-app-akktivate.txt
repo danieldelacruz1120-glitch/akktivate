@@ -1,0 +1,23 @@
+Crea una app móvil-first llamada Akktivate para runners, ciclistas y deportistas de resistencia al aire libre. La app debe tener una estética deportiva premium: dark theme con acentos en naranja energético y verde neón, tipografía bold y dinámica, animaciones fluidas que transmitan movimiento y velocidad.
+
+Pantallas y funcionalidades a incluir:
+
+Dashboard principal — muestra el nivel actual del usuario (con barra de progreso XP), racha de días activos, estadísticas rápidas (km esta semana, actividades, calorías), y un botón CTA prominente "Iniciar ruta".
+
+Generador de rutas personalizadas — el usuario introduce su ubicación (o usa GPS simulado), selecciona tipo de actividad (running, ciclismo, trail, MTB), distancia objetivo y dificultad. La app genera una ruta con puntos de interés destacados, desnivel estimado y tiempo aproximado. Incluye una vista de mapa esquemático SVG con la ruta trazada.
+
+Sistema de progresión por niveles — gamificación con niveles del 1 al 50 nombrados (Rookie → Explorer → Pacer → Endurance → Elite → Legend). Cada actividad completada otorga XP según distancia, dificultad y constancia. Muestra insignias desbloqueables visualmente (iconos de logros: primera ruta, racha 7 días, 100km acumulados, primera ruta nocturna, ruta bajo la lluvia, etc.).
+
+Feed de comunidad — sección social donde aparecen actividades recientes de otros usuarios con opción de dar "Kudos". Incluye un ranking semanal local (de tu zona, no global) donde los usuarios más activos de la semana reciben un badge destacado.
+
+Perfil y galería de logros — tarjeta de perfil con avatar, nivel, estadísticas totales acumuladas y colección visual de todas las insignias conseguidas.
+
+Requisitos técnicos y de experiencia:
+- Navegación inferior con 4 tabs: Inicio, Rutas, Comunidad, Perfil
+- Transiciones animadas entre pantallas
+- Datos simulados realistas (nombres, rutas, actividades de ejemplo)
+- Totalmente funcional e interactivo, sin necesidad de backend
+- Diseño mobile-first pero legible en escritorio
+- Micro-interacciones en botones, cards y elementos de progreso
+
+Tono visual: energético, motivador, premium sin ser elitista. Que transmita superación personal y pertenencia a una comunidad activa. Inspiración visual: mezcla entre Strava, Nike Run Club y una estética gaming moderna. Evita paletas genéricas y fuentes corporativas: que se vea diseñada con intención, no generada por defecto.
