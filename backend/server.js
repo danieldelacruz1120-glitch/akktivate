@@ -45,5 +45,5 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`\n🏃 Akktivate Backend corriendo en http://localhost:${PORT}`);
   console.log(`   Health: http://localhost:${PORT}/api/health`);
-  console.log(`   IA Akko: ${process.env.GEMINI_API_KEY ? '✅ Gemini configurado' : '⚠️  sin configurar (añade GEMINI_API_KEY en .env — gratis en aistudio.google.com/apikey)'}\n`);
+  console.log(`   IA Akko: ${process.env.GROQ_API_KEY ? '✅ Groq configurado' : '⚠️  GROQ_API_KEY no configurada — añádela en Render > Environment'}\n`);
 });
