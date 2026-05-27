@@ -3,14 +3,16 @@ services:
     name: akktivate-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm install && npm rebuild better-sqlite3 --build-from-source && node seed.js
+    buildCommand: npm install && node seed.js
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
       - key: JWT_SECRET
         value: akktivate_secreto_xK9mP2qL8nR4wZ7vT1jY5bH6cF3sD0eA
-      - key: GEMINI_API_KEY
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
         sync: false
       - key: GROQ_API_KEY
         sync: false

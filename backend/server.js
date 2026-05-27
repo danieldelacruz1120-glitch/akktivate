@@ -1,16 +1,16 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const { initDb } = require('./db');
 
 // Evitar que el proceso muera por errores no capturados
 process.on('uncaughtException', err => console.error('uncaughtException:', err.message));
 process.on('unhandledRejection', err => console.error('unhandledRejection:', err?.message));
 
-
 const app = express();
 
 app.use(cors({
-  origin: '*', // En producción, cambia esto al dominio de tu app
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -29,9 +29,10 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     app: 'Akktivate Backend',
-    version: '1.0.0',
+    version: '2.0.0',
     time: new Date().toISOString(),
-    ai: process.env.GROQ_API_KEY ? 'Groq ✅' : process.env.GEMINI_API_KEY ? 'Gemini ✅' : 'sin configurar',
+    db: process.env.TURSO_DATABASE_URL ? 'Turso' : 'SQLite local',
+    ai: process.env.GROQ_API_KEY ? 'Groq OK' : 'sin configurar',
   });
 });
 
@@ -41,9 +42,20 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
+// ── Arranque con Turso ────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`\n🏃 Akktivate Backend corriendo en http://localhost:${PORT}`);
-  console.log(`   Health: http://localhost:${PORT}/api/health`);
-  console.log(`   IA Akko: ${process.env.GROQ_API_KEY ? '✅ Groq configurado' : '⚠️  GROQ_API_KEY no configurada — añádela en Render > Environment'}\n`);
-});
+
+initDb()
+  .then(() => {
+    console.log('Base de datos Turso conectada y lista.');
+    app.listen(PORT, () => {
+      console.log(`\nAkktivate Backend en http://localhost:${PORT}`);
+      console.log(`   Health: http://localhost:${PORT}/api/health`);
+      console.log(`   DB: ${process.env.TURSO_DATABASE_URL ? 'Turso (persistente)' : 'SQLite local'}`);
+      console.log(`   IA Akko: ${process.env.GROQ_API_KEY ? 'Groq configurado' : 'GROQ_API_KEY no configurada'}\n`);
+    });
+  })
+  .catch(err => {
+    console.error('Error al conectar con la base de datos:', err.message);
+    process.exit(1);
+  });
