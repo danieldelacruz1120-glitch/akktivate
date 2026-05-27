@@ -3753,10 +3753,11 @@ function AIAssistant({ open, onClose, seedMessages, user }) {
         { role: 'user', content: q },
       ];
 
+      await window.AKK_BRIDGE._ready;
       const reply = await window.AKK_BRIDGE.chat(next, ctx);
       setMessages(m => [...m, { role: 'assistant', content: String(reply).trim() }]);
     } catch (e) {
-      setMessages(m => [...m, { role: 'assistant', content: 'Uy, no he podido conectar. Inténtalo de nuevo en un momento.' }]);
+      setMessages(m => [...m, { role: 'assistant', content: 'Error: ' + e.message + '. Inténtalo de nuevo.' }]);
     } finally {
       setPending(false);
     }
