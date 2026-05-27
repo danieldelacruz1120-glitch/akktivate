@@ -1127,7 +1127,7 @@ function Dashboard({ onStartRoute, onAskAI, user, profile, isNewUser }) {
       {/* Header */}
       <div style={{ padding: '12px 20px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Avatar initials={initials} color={u.avatarColor} size={42} />
+          <Avatar initials={initials} color={u.avatarColor} size={42} imageUrl={window.AKK_DATA?.user?.avatarUrl}/>
           <div>
             <div style={{ fontSize: 12, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 4 }}>
               <I name="location" size={11} /> {locationLabel || 'Detectando ubicación…'}
@@ -2524,6 +2524,24 @@ window.CommunityScreen = CommunityScreen;
 // profile.jsx — Akktivate Profile + Badge Gallery
 const { useState: useStateP } = React;
 
+// Comprime la imagen a 80×80px JPEG (~5KB) para guardar en BD y localStorage
+function compressAvatar(dataUrl) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const SIZE = 80;
+      const canvas = document.createElement('canvas');
+      canvas.width = SIZE; canvas.height = SIZE;
+      const ctx = canvas.getContext('2d');
+      const s = Math.min(img.width, img.height);
+      ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, SIZE, SIZE);
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 function ProfileScreen({ onLogout, user, profile, isNewUser }) {
   const D = window.AKK_DATA;
   const I = window.Icon;
@@ -2546,7 +2564,10 @@ function ProfileScreen({ onLogout, user, profile, isNewUser }) {
   const allBadges = D.badges.map(b => isNewUser ? { ...b, unlocked: false } : b);
   const unlocked = allBadges.filter(b => b.unlocked).length;
   const [tab, setTab] = useStateP('logros');
-  const [avatarUrl, setAvatarUrl] = useStateP(null);
+  const [avatarUrl, setAvatarUrl] = useStateP(() => {
+    const uid = window.AKK_DATA?.user?.id;
+    return window.AKK_DATA?.user?.avatarUrl || (uid ? localStorage.getItem('akk_avatar_' + uid) : null) || null;
+  });
   const fileInputRef = React.useRef(null);
 
   function onAvatarClick() {
@@ -2558,14 +2579,38 @@ function ProfileScreen({ onLogout, user, profile, isNewUser }) {
     if (!file) return;
     if (!file.type.startsWith('image/')) return;
     const reader = new FileReader();
-    reader.onload = () => setAvatarUrl(reader.result);
+    reader.onload = async () => {
+      try {
+        const compressed = await compressAvatar(reader.result);
+        setAvatarUrl(compressed);
+        const uid = window.AKK_DATA?.user?.id;
+        if (uid) localStorage.setItem('akk_avatar_' + uid, compressed);
+        if (window.AKK_DATA?.user) window.AKK_DATA.user.avatarUrl = compressed;
+        const token = window.AKK_BRIDGE?.token;
+        if (token) fetch(window.AKK_BRIDGE.api + '/user/me', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ avatar_url: compressed }),
+        }).catch(() => {});
+      } catch(err) {
+        setAvatarUrl(reader.result);
+      }
+    };
     reader.readAsDataURL(file);
-    // Reset so same file can be re-picked
     e.target.value = '';
   }
 
   function removeAvatar() {
     setAvatarUrl(null);
+    const uid = window.AKK_DATA?.user?.id;
+    if (uid) localStorage.removeItem('akk_avatar_' + uid);
+    if (window.AKK_DATA?.user) window.AKK_DATA.user.avatarUrl = null;
+    const token = window.AKK_BRIDGE?.token;
+    if (token) fetch(window.AKK_BRIDGE.api + '/user/me', {
+      method: 'PUT',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avatar_url: '' }),
+    }).catch(() => {});
   }
 
   async function useGPS() {
@@ -4065,6 +4110,7 @@ window.AIInlineLauncher = AIInlineLauncher;
       // Mapear usuario real al formato que espera el frontend
       const AVATAR_COLORS = ['#FF4D1A','#C6FF3D','#5DC9F2','#FFB31A','#FF6E3D','#E6E6FF','#9AA0FF'];
       window.AKK_DATA.user = Object.assign({}, window.AKK_DATA.user, {
+        id: apiUser.id,
         name: apiUser.name,
         handle: apiUser.email,
         avatarColor: AVATAR_COLORS[apiUser.id % AVATAR_COLORS.length] || '#FF4D1A',
@@ -4076,6 +4122,7 @@ window.AIInlineLauncher = AIInlineLauncher;
         location: apiUser.location || window.AKK_DATA.user.location,
         locationLat: apiUser.locationLat,
         locationLng: apiUser.locationLng,
+        avatarUrl: apiUser.avatarUrl || localStorage.getItem('akk_avatar_' + apiUser.id) || null,
         totals: apiUser.totals || window.AKK_DATA.user.totals,
         weekly: Object.assign({}, window.AKK_DATA.user.weekly, apiUser.weekly),
       });

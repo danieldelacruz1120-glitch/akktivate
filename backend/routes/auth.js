@@ -16,6 +16,7 @@ function safeUser(u) {
     name: u.name,
     email: u.email,
     provider: u.provider,
+    avatarUrl: u.avatar_url || null,
     level: u.level,
     xp: u.xp,
     xpToNext: u.xp_to_next,
