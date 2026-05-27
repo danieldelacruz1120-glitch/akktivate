@@ -30,7 +30,7 @@ app.get('/api/health', (req, res) => {
     app: 'Akktivate Backend',
     version: '1.0.0',
     time: new Date().toISOString(),
-    ai: !!process.env.GEMINI_API_KEY ? 'Gemini ✅' : 'sin configurar',
+    ai: process.env.GROQ_API_KEY ? 'Groq ✅' : process.env.GEMINI_API_KEY ? 'Gemini ✅' : 'sin configurar',
   });
 });
 

@@ -12,3 +12,7 @@ services:
         value: akktivate_secreto_xK9mP2qL8nR4wZ7vT1jY5bH6cF3sD0eA
       - key: GEMINI_API_KEY
         sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false

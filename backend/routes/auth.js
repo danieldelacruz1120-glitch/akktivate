@@ -56,6 +56,34 @@ router.post('/register', async (req, res) => {
       VALUES (?, ?, ?, 'email', ?)
     `).run(name.trim(), email.trim().toLowerCase(), hash, xpToNextLevel(1));
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+
+    // Enviar email de bienvenida (no bloquea el registro si falla)
+    if (process.env.RESEND_API_KEY) {
+      try {
+        const { Resend } = require('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: 'Akktivate <onboarding@resend.dev>',
+          to: email.trim().toLowerCase(),
+          subject: '¡Bienvenido a Akktivate!',
+          html: `
+            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#0A0507;color:#fff;padding:32px;border-radius:12px;">
+              <h1 style="color:#FF4D1A;font-size:28px;margin-bottom:8px;">¡Bienvenido, ${name}!</h1>
+              <p style="color:#aaa;font-size:16px;">Tu cuenta en <strong style="color:#fff">Akktivate</strong> ha sido creada correctamente.</p>
+              <p style="color:#aaa;font-size:14px;margin-top:24px;">Ya puedes empezar a registrar tus rutas, ganar XP y competir en el ranking.</p>
+              <a href="https://danieldelacruz1120-glitch.github.io/akktivate"
+                 style="display:inline-block;margin-top:24px;padding:14px 28px;background:#FF4D1A;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">
+                Abrir Akktivate
+              </a>
+              <p style="color:#555;font-size:12px;margin-top:32px;">Si no has creado esta cuenta, ignora este mensaje.</p>
+            </div>
+          `,
+        });
+      } catch (emailErr) {
+        console.error('Email error (no crítico):', emailErr.message);
+      }
+    }
+
     res.status(201).json({ token: makeToken(user.id), user: safeUser(user) });
   } catch (err) {
     console.error('register error:', err.message);

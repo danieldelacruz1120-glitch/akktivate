@@ -3,13 +3,10 @@ const requireAuth = require('../middleware/auth');
 
 const router = express.Router();
 
-// POST /api/ai/chat — proxy a Gemini (gratis) para el asistente Akko
+// POST /api/ai/chat — Groq (LLaMA 3.3 70B, gratis y rápido)
 router.post('/chat', requireAuth, async (req, res) => {
-  if (!process.env.GEMINI_API_KEY) {
-    return res.status(503).json({
-      error: 'Asistente IA no configurado',
-      hint: 'Añade GEMINI_API_KEY en el archivo .env — consíguela gratis en https://aistudio.google.com/apikey',
-    });
+  if (!process.env.GROQ_API_KEY) {
+    return res.status(503).json({ error: 'Asistente IA no configurado' });
   }
 
   const { messages, context } = req.body;
@@ -17,35 +14,31 @@ router.post('/chat', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'messages es obligatorio' });
   }
 
-  const { GoogleGenerativeAI } = require('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-flash-lite-latest',
-    systemInstruction: buildSystemPrompt(req.user, context),
-  });
-
-  // Convertir historial al formato de Gemini
-  // Gemini espera roles 'user' y 'model' (no 'assistant')
-  // Y el último mensaje debe ser del user
-  const history = messages.slice(-10);
-  const lastMsg = history[history.length - 1];
-  const chat = model.startChat({
-    history: history.slice(0, -1).map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(m.content) }],
-    })),
-  });
-
   try {
-    const result = await chat.sendMessage(String(lastMsg?.content || ''));
-    const reply = result.response.text();
+    const Groq = require('groq-sdk');
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+    const systemPrompt = buildSystemPrompt(req.user, context);
+    const chatMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages.slice(-10).map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: String(m.content),
+      })),
+    ];
+
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: chatMessages,
+      max_tokens: 400,
+      temperature: 0.7,
+    });
+
+    const reply = completion.choices[0]?.message?.content || 'Sin respuesta.';
     res.json({ reply });
   } catch (err) {
-    console.error('Error Gemini API:', err.message);
-    if (err.message?.includes('API_KEY') || err.status === 400) {
-      return res.status(401).json({ error: 'API key de Gemini inválida. Revisa tu archivo .env' });
-    }
-    res.status(500).json({ error: 'Error al conectar con la IA. Inténtalo de nuevo.' });
+    console.error('Error Groq API:', err.message);
+    res.status(500).json({ error: 'Error al conectar con la IA: ' + err.message });
   }
 });
 
@@ -54,29 +47,29 @@ function buildSystemPrompt(user, ctx) {
   let weatherLine = 'Clima: sin datos.';
   let locationLine = 'Ubicación: no especificada.';
 
-  if (ctx?.location) locationLine = `Ubicación: ${ctx.location}.`;
+  if (ctx?.location) locationLine = `Ubicación actual: ${ctx.location}.`;
   if (ctx?.weather?.current) {
     const c = ctx.weather.current;
-    weatherLine = `Clima: ${Math.round(c.temperature_2m)}°C, viento ${Math.round(c.wind_speed_10m)} km/h, humedad ${Math.round(c.relative_humidity_2m)}%.`;
+    weatherLine = `Clima ahora: ${Math.round(c.temperature_2m)}°C, viento ${Math.round(c.wind_speed_10m)} km/h, humedad ${Math.round(c.relative_humidity_2m)}%.`;
   }
+
   const hour = new Date().getHours();
   const timeOfDay = hour < 6 ? 'madrugada' : hour < 12 ? 'mañana' : hour < 18 ? 'tarde' : 'noche';
 
-  return `Eres "Akko", el asistente IA de Akktivate, una app para runners, ciclistas y deportistas de resistencia.
+  return `Eres "Akko", el asistente IA de Akktivate, app para runners, ciclistas y deportistas de resistencia.
 
-Ayudas con: rutas, planificación de entrenamientos, técnica, nutrición, recuperación, prevención de lesiones, material deportivo.
+Ayudas con: rutas, entrenamientos, técnica, nutrición, recuperación, lesiones, material deportivo.
 
-Tono: motivador, directo, breve. Habla siempre en español. Frases cortas. Sin emojis. Unidades métricas.
+Tono: motivador, directo, muy breve. Siempre en español. Frases cortas. Sin emojis. Unidades métricas.
 
-CONTEXTO DEL USUARIO:
-Nombre: ${name}
-Hora local: ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} (${timeOfDay})
+USUARIO: ${name}
+HORA: ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} (${timeOfDay})
 ${locationLine}
 ${weatherLine}
 
-LIMITACIONES:
-- No tienes acceso a mapas turn-by-turn. Para rutas concretas, redirige al generador de la pestaña Rutas.
-- No tienes historial de entrenamientos del usuario.
+REGLAS:
+- Responde en máximo 3 frases.
+- Para rutas concretas, redirige a la pestaña Rutas.
 - Si te piden algo fuera del deporte, redirige amablemente.`;
 }
 
