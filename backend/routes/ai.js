@@ -73,4 +73,49 @@ REGLAS:
 - Si te piden algo fuera del deporte, redirige amablemente.`;
 }
 
+// POST /api/ai/route — genera una ruta real con IA para la zona del usuario
+router.post('/route', requireAuth, async (req, res) => {
+  if (!process.env.GROQ_API_KEY) return res.status(503).json({ error: 'IA no configurada' });
+
+  const { location, activity, distance, difficulty } = req.body;
+  if (!location || !distance) return res.status(400).json({ error: 'Faltan location y distance' });
+
+  const actNames = { run: 'running a pie', bike: 'bicicleta de carretera', trail: 'trail running', mtb: 'mountain bike' };
+  const diffNames = { facil: 'fácil', medio: 'moderado', duro: 'duro', pro: 'profesional' };
+
+  const system = `Eres un experto local en rutas deportivas de ${location}.
+RESPONDE ÚNICAMENTE con JSON válido, sin texto extra, sin markdown, sin bloques de código.
+Formato exacto:
+{"name":"nombre creativo (máx 28 chars)","start":"lugar de salida concreto y real (plaza, calle, parque)","waypoints":["lugar real 1","lugar real 2","lugar real 3"],"description":"descripción breve del recorrido (máx 90 chars)","tips":"consejo práctico (máx 60 chars)"}
+Usa nombres REALES de ${location}. Los waypoints deben ser lugares reconocibles de la zona. La ruta debe ser circular o acabar cerca del inicio.`;
+
+  const userMsg = `Crea una ruta de exactamente ${distance} km de ${actNames[activity] || activity} en ${location}, nivel ${diffNames[difficulty] || difficulty}.`;
+
+  try {
+    const Groq = require('groq-sdk');
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userMsg },
+      ],
+      max_tokens: 300,
+      temperature: 0.85,
+    });
+    const text = completion.choices[0]?.message?.content || '{}';
+    let route;
+    try {
+      const m = text.match(/\{[\s\S]*\}/);
+      route = JSON.parse(m ? m[0] : text);
+    } catch {
+      route = null;
+    }
+    res.json({ route });
+  } catch (err) {
+    console.error('Route AI error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

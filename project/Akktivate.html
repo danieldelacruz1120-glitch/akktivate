@@ -1529,6 +1529,8 @@ function RoutesScreen({ onAskAI, profile }) {
   const [results, setResults] = useRStateRT([]);
   const [searching, setSearching] = useRStateRT(false);
   const [mapOpen, setMapOpen] = useRStateRT(false);
+  const [aiRoute, setAiRoute] = useRStateRT(null);
+  const [aiError, setAiError] = useRStateRT(null);
 
   // Preload cached location/weather
   React.useEffect(() => {
@@ -1642,14 +1644,28 @@ function RoutesScreen({ onAskAI, profile }) {
     return h ? `${h}h ${mm}m` : `${mm}m`;
   }
 
-  function generate() {
+  async function generate() {
     setGenerating(true);
     setGenerated(false);
-    setTimeout(() => {
-      setGenerating(false);
-      setGenerated(true);
-      setRouteKey(k => k + 1);
-    }, 900);
+    setAiRoute(null);
+    setAiError(null);
+    try {
+      const token = window.AKK_BRIDGE?.token;
+      if (!token) throw new Error('Sin sesión');
+      const r = await fetch(window.AKK_BRIDGE.api + '/ai/route', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ location, locationLat: coords?.lat, locationLng: coords?.lng, activity, distance, difficulty }),
+      });
+      const d = await r.json();
+      if (r.ok && d.route) setAiRoute(d.route);
+      else setAiError(d.error || 'No se pudo generar la ruta');
+    } catch(e) {
+      setAiError(e.message);
+    }
+    setGenerating(false);
+    setGenerated(true);
+    setRouteKey(k => k + 1);
   }
 
   return (
@@ -1883,7 +1899,9 @@ function RoutesScreen({ onAskAI, profile }) {
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14, gap: 12 }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div className="label" style={{ marginBottom: 4 }}>RUTA GENERADA</div>
-                  <div className="h-display" style={{ fontSize: 22, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{location} Loop</div>
+                  <div className="h-display" style={{ fontSize: 22, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{aiRoute?.name || location + ' Loop'}</div>
+                  {aiRoute?.start && <div style={{ fontSize: 11, color: 'var(--orange-bright)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}><I name="location" size={10}/>{aiRoute.start}</div>}
+                  {aiRoute?.description && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4, lineHeight: 1.4 }}>{aiRoute.description}</div>}
                 </div>
                 <div className="kbd" style={{ color: 'var(--green-bright)', background: 'var(--green-soft)', borderColor: 'rgba(198,255,61,0.3)', flexShrink: 0 }}>
                   +{xpReward} XP
@@ -1905,14 +1923,31 @@ function RoutesScreen({ onAskAI, profile }) {
                 <ElevationProfile key={routeKey} difficulty={difficulty}/>
               </div>
 
-              {/* POIs */}
+              {/* Waypoints IA o POIs por defecto */}
               <div style={{ marginTop: 16 }}>
-                <div className="label" style={{ fontSize: 10, marginBottom: 8 }}>Puntos de interés</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <POIChip icon="mountain" label="Mirador" color="#FFB31A"/>
-                  <POIChip icon="weather" label="Fuente" color="#5DC9F2"/>
-                  <POIChip icon="trophy" label="Segmento PR" color="#C6FF3D"/>
+                <div className="label" style={{ fontSize: 10, marginBottom: 8 }}>
+                  {aiRoute?.waypoints?.length ? 'RECORRIDO' : 'PUNTOS DE INTERÉS'}
                 </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {aiRoute?.waypoints?.length
+                    ? aiRoute.waypoints.map((wp, i) => (
+                        <POIChip key={i} icon="location" label={wp} color={['#FFB31A','#5DC9F2','#C6FF3D','#FF6E3D'][i % 4]}/>
+                      ))
+                    : <>
+                        <POIChip icon="mountain" label="Mirador" color="#FFB31A"/>
+                        <POIChip icon="weather" label="Fuente" color="#5DC9F2"/>
+                        <POIChip icon="trophy" label="Segmento PR" color="#C6FF3D"/>
+                      </>
+                  }
+                </div>
+                {aiRoute?.tips && (
+                  <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(255,179,26,0.08)', border: '1px solid rgba(255,179,26,0.2)', borderRadius: 10, fontSize: 12, color: '#FFB31A', lineHeight: 1.4 }}>
+                    💡 {aiRoute.tips}
+                  </div>
+                )}
+                {aiError && !aiRoute && (
+                  <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-faint)' }}>Ruta generada sin IA · {aiError}</div>
+                )}
               </div>
 
               <button onClick={() => setMapOpen(true)} className="btn btn-primary" style={{ width: '100%', marginTop: 18, background: 'var(--green)', boxShadow: 'var(--shadow-glow-green)' }}>
@@ -2233,7 +2268,7 @@ function CommunityScreen({ user }) {
 
   return (
     <div className="screen screen-in">
-      <ScreenHeaderInline title="Comunidad" sub={`ZONA · ${userCity}`}/>
+      <ScreenHeaderInline title="Comunidad" sub="COMUNIDAD DE AKKTIVATE"/>
 
       {/* Segmented control */}
       <div style={{ padding: '0 20px', marginBottom: 16 }}>
@@ -2374,7 +2409,7 @@ function RankingView({ user }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <I name="trophy" size={28} color="var(--orange-bright)"/>
           <div>
-            <div className="label" style={{ color: 'var(--orange-bright)' }}>Ranking semanal · {rankingCity}</div>
+            <div className="label" style={{ color: 'var(--orange-bright)' }}>RANKING AKKTIVO</div>
             <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>Termina en 2d 14h · Top 3 reciben badge</div>
           </div>
         </div>
