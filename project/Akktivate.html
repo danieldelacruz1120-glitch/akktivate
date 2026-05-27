@@ -1515,7 +1515,7 @@ function RoutesScreen({ onAskAI, profile }) {
   const [activity, setActivity] = useRStateRT(profile?.activity || 'run');
   const [distance, setDistance] = useRStateRT(10);
   const [difficulty, setDifficulty] = useRStateRT(profile?.level === 'rookie' ? 'facil' : profile?.level === 'pro' ? 'duro' : 'medio');
-  const [location, setLocation] = useRStateRT(profile?.city || 'Madrid · Retiro');
+  const [location, setLocation] = useRStateRT(profile?.city || window.AKK_DATA?.user?.location || 'Tu ubicación');
   const [generating, setGenerating] = useRStateRT(false);
   const [generated, setGenerated] = useRStateRT(true);
   const [routeKey, setRouteKey] = useRStateRT(0);
@@ -1542,12 +1542,25 @@ function RoutesScreen({ onAskAI, profile }) {
         } catch (e) {}
       })();
     } else {
-      window.AKK_TOOLS.getLocationAndWeather().then(ctx => {
-        if (ctx?.geo?.label) setLocation(ctx.geo.label);
-        if (ctx?.weather) setWeather(ctx.weather);
-        if (ctx?.pos) setCoords(ctx.pos);
-        if (ctx?.real) setGpsState('ok');
-      }).catch(() => {});
+      // Use location saved from GPS on sign-in/sign-up
+      const u = window.AKK_DATA?.user;
+      if (u?.locationLat && u?.locationLng) {
+        (async () => {
+          try {
+            const w = await window.AKK_TOOLS.getWeather(u.locationLat, u.locationLng);
+            setWeather(w);
+            setCoords({ lat: u.locationLat, lng: u.locationLng });
+            if (u.location) setLocation(u.location);
+          } catch (e) {}
+        })();
+      } else {
+        window.AKK_TOOLS.getLocationAndWeather().then(ctx => {
+          if (ctx?.geo?.label) setLocation(ctx.geo.label);
+          if (ctx?.weather) setWeather(ctx.weather);
+          if (ctx?.pos) setCoords(ctx.pos);
+          if (ctx?.real) setGpsState('ok');
+        }).catch(() => {});
+      }
     }
   }, [profile?.cityCoords?.lat]);
 
@@ -2364,15 +2377,13 @@ function RankingView({ user }) {
       </div>
 
       {/* Podium */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr 1fr', gap: 8, alignItems: 'flex-end', marginBottom: 16 }}>
-        {[
-          { ...podium[1], height: 80 },
-          { ...podium[0], height: 110 },
-          { ...podium[2], height: 64 },
-        ].map((p, i) => (
-          <PodiumColumn key={p.user} p={p} place={p.rank}/>
-        ))}
-      </div>
+      {podium.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: `${podium[1] ? '1fr ' : ''}1.15fr${podium[2] ? ' 1fr' : ''}`, gap: 8, alignItems: 'flex-end', marginBottom: 16 }}>
+          {podium[1] && <PodiumColumn p={{ ...podium[1], height: 80 }} place={podium[1].rank}/>}
+          {podium[0] && <PodiumColumn p={{ ...podium[0], height: 110 }} place={podium[0].rank}/>}
+          {podium[2] && <PodiumColumn p={{ ...podium[2], height: 64 }} place={podium[2].rank}/>}
+        </div>
+      )}
 
       {/* Rest list */}
       <div className="card" style={{ padding: '4px 16px' }}>
@@ -2517,7 +2528,7 @@ function ProfileScreen({ onLogout, user, profile, isNewUser }) {
   const displayName = user?.name || baseUser.name;
   const initials = displayName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || 'A';
   const email = user?.email || baseUser.handle;
-  const registeredCity = profile?.city || 'Madrid · Retiro';
+  const registeredCity = profile?.city || window.AKK_DATA?.user?.location || '';
   const [currentLocation, setCurrentLocation] = useStateP(null); // overrides registered if set
   const [locating, setLocating] = useStateP(false);
   const [locError, setLocError] = useStateP(null);
@@ -2686,11 +2697,6 @@ function ProfileScreen({ onLogout, user, profile, isNewUser }) {
               </>
             )}
           </button>
-          {currentLocation && (
-            <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-faint)' }}>
-              Registro: <span style={{ color: 'var(--text-dim)' }}>{registeredCity}</span>
-            </div>
-          )}
           {locError && (
             <div style={{ marginTop: 8, padding: '6px 12px', borderRadius: 999, background: 'rgba(255,77,26,0.10)', border: '1px solid rgba(255,77,26,0.3)', fontSize: 11, color: 'var(--orange-bright)', fontWeight: 600, maxWidth: 280, textAlign: 'center', lineHeight: 1.4 }}>
               {locError}
@@ -3826,7 +3832,7 @@ function AIAssistant({ open, onClose, seedMessages, user }) {
               </span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-              {ctx?.weather ? `Conectado · ${ctx.geo?.label || 'GPS'} · ${Math.round(ctx.weather.current.temperature_2m)}°C` : 'Cargando contexto…'}
+              Tu asistente de rutas personalizado
             </div>
           </div>
           <button onClick={onClose} style={{
