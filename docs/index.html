@@ -585,9 +585,11 @@ window.AKK_TOOLS = (() => {
       cache.ready = true;
       cache.real = true;
     } catch (e) {
-      // Fallback Madrid Retiro
-      cache.pos = { lat: 40.4153, lng: -3.6843 };
-      cache.geo = { city: 'Madrid', district: 'Retiro', label: 'Madrid · Retiro' };
+      // Fallback: usar la ubicación guardada del usuario si existe
+      const _u = window.AKK_DATA?.user;
+      const _hasReal = _u?.locationLat && _u?.locationLng && _u?.location && _u.location !== 'Madrid · Retiro';
+      cache.pos = _hasReal ? { lat: _u.locationLat, lng: _u.locationLng } : { lat: 40.4153, lng: -3.6843 };
+      cache.geo = { label: _hasReal ? _u.location : '' };
       try { cache.weather = await getWeather(cache.pos.lat, cache.pos.lng); } catch (e) { cache.weather = null; }
       cache.ready = true;
       cache.real = false;
@@ -2227,10 +2229,11 @@ function CommunityScreen({ user }) {
   const I = window.Icon;
   const { Avatar, KudosButton, ActivityIcon } = window;
   const [tab, setTab] = useCStateCM('feed');
+  const userCity = (window.AKK_DATA?.user?.location || '').split(' · ')[0].trim().toUpperCase() || 'GLOBAL';
 
   return (
     <div className="screen screen-in">
-      <ScreenHeaderInline title="Comunidad" sub="ZONA · MADRID"/>
+      <ScreenHeaderInline title="Comunidad" sub={`ZONA · ${userCity}`}/>
 
       {/* Segmented control */}
       <div style={{ padding: '0 20px', marginBottom: 16 }}>
@@ -2355,6 +2358,7 @@ function RankingView({ user }) {
   const I = window.Icon;
   const { Avatar } = window;
   const initialsFrom = n => (n || '').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || 'YO';
+  const rankingCity = (window.AKK_DATA?.user?.location || '').split(' · ')[0].trim() || 'Global';
   const ranking = D.ranking.map(r => r.isMe ? { ...r, user: user?.name || r.user, initials: initialsFrom(user?.name || r.user) } : r);
   const podium = ranking.slice(0, 3);
   const rest = ranking.slice(3);
@@ -2370,7 +2374,7 @@ function RankingView({ user }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <I name="trophy" size={28} color="var(--orange-bright)"/>
           <div>
-            <div className="label" style={{ color: 'var(--orange-bright)' }}>Ranking semanal · Madrid</div>
+            <div className="label" style={{ color: 'var(--orange-bright)' }}>Ranking semanal · {rankingCity}</div>
             <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>Termina en 2d 14h · Top 3 reciben badge</div>
           </div>
         </div>
@@ -3681,7 +3685,7 @@ const { useState: useStateAI, useRef: useRefAI, useEffect: useEffectAI } = React
 
 function buildSystemPrompt(user, ctx) {
   const name = user?.name || 'Atleta';
-  const loc = ctx?.geo?.label || 'Madrid';
+  const loc = ctx?.geo?.label || window.AKK_DATA?.user?.location || '';
   const realData = ctx?.real ? 'SÍ' : 'NO (GPS sin permiso)';
 
   let weatherLine = 'Clima: sin datos.';
