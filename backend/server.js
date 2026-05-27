@@ -22,6 +22,7 @@ app.use('/api/user',       require('./routes/user'));
 app.use('/api/activities', require('./routes/activities'));
 app.use('/api/community',  require('./routes/community'));
 app.use('/api/ai',         require('./routes/ai'));
+app.use('/api/admin',      require('./routes/admin'));
 
 // ── Health check ──────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

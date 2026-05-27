@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Akktivate · Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0A0507; --surface: #130D10; --surface2: #1C1419;
+      --line: #2A2228; --orange: #FF4D1A; --orange-bright: #FF6E3D;
+      --orange-soft: rgba(255,77,26,0.12); --text: #F5F0F3;
+      --text-dim: #8A8589; --text-faint: #4A3E46;
+      --green: #C6FF3D; --red: #FF4D4D; --radius: 14px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.5; min-height: 100vh; }
+
+    /* Header */
+    .header { position: sticky; top: 0; z-index: 100; background: rgba(10,5,7,0.92); backdrop-filter: blur(20px); border-bottom: 1px solid var(--line); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .header-logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; letter-spacing: -0.02em; }
+    .header-logo span { color: var(--orange); }
+    .badge-admin { padding: 2px 8px; background: var(--orange-soft); border: 1px solid rgba(255,77,26,0.3); border-radius: 6px; font-size: 10px; font-weight: 700; color: var(--orange-bright); text-transform: uppercase; letter-spacing: 0.08em; }
+
+    /* Layout */
+    .main { max-width: 1120px; margin: 0 auto; padding: 28px 20px 80px; }
+
+    /* Card */
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+
+    /* Stats */
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+    @media (max-width: 700px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+    .stat-card { padding: 16px 18px; }
+    .stat-icon { font-size: 20px; margin-bottom: 6px; }
+    .stat-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; }
+    .stat-value { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; margin-top: 4px; line-height: 1; }
+    .stat-sub { font-size: 11px; color: var(--text-faint); margin-top: 5px; }
+
+    /* Section */
+    .section-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .section-title { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+    .count-chip { font-size: 11px; font-weight: 700; color: var(--text-dim); background: var(--surface2); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; }
+
+    /* Search */
+    .search-input { width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; margin-bottom: 12px; }
+    .search-input:focus { border-color: rgba(255,77,26,0.45); }
+    .search-input::placeholder { color: var(--text-faint); }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--line); }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: var(--surface2); }
+    th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; border-bottom: 1px solid var(--line); }
+    td { padding: 12px 14px; font-size: 13px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    tr:last-child td { border-bottom: 0; }
+    tbody tr:hover td { background: rgba(255,255,255,0.015); }
+
+    /* Avatar */
+    .avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #0A0507; flex-shrink: 0; }
+    .user-cell { display: flex; align-items: center; gap: 10px; }
+    .user-name { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 5px; }
+    .user-email { font-size: 11px; color: var(--text-dim); }
+
+    /* Chips */
+    .level-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; background: rgba(255,77,26,0.10); color: var(--orange-bright); border: 1px solid rgba(255,77,26,0.2); }
+    .you-chip { font-size: 9px; padding: 2px 6px; background: var(--orange-soft); color: var(--orange-bright); border: 1px solid rgba(255,77,26,0.3); border-radius: 5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+    .provider { font-size: 10px; padding: 2px 7px; border-radius: 5px; font-weight: 700; text-transform: uppercase; }
+    .provider-email { background: rgba(92,201,242,0.1); color: #5DC9F2; border: 1px solid rgba(92,201,242,0.2); }
+    .provider-google { background: rgba(198,255,61,0.1); color: var(--green); border: 1px solid rgba(198,255,61,0.2); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: middle; }
+    .dot-green { background: var(--green); }
+    .dot-dim { background: var(--text-faint); }
+
+    /* Buttons */
+    .btn { cursor: pointer; font-family: inherit; font-weight: 600; border: none; border-radius: 8px; transition: opacity 0.15s, transform 0.1s; display: inline-flex; align-items: center; gap: 5px; }
+    .btn:hover { opacity: 0.82; }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-delete { background: rgba(255,77,77,0.12); color: var(--red); border: 1px solid rgba(255,77,77,0.25); }
+    .btn-primary { background: var(--orange); color: #0A0507; width: 100%; padding: 12px; font-size: 15px; font-weight: 700; border-radius: 12px; }
+    .btn-logout { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--line); padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+
+    /* Modal */
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 999; padding: 20px; }
+    .modal { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px; max-width: 360px; width: 100%; }
+    .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .modal-text { font-size: 14px; color: var(--text-dim); margin-bottom: 22px; line-height: 1.55; }
+    .modal-actions { display: flex; gap: 10px; }
+    .btn-cancel { flex: 1; background: var(--surface2); border: 1px solid var(--line); color: var(--text); padding: 11px; font-size: 14px; border-radius: 10px; cursor: pointer; font-family: inherit; font-weight: 600; }
+    .btn-cancel:hover { opacity: 0.8; }
+    .btn-confirm-delete { flex: 1; background: var(--red); color: #fff; padding: 11px; font-size: 14px; border-radius: 10px; border: none; cursor: pointer; font-family: inherit; font-weight: 700; }
+    .btn-confirm-delete:hover { opacity: 0.85; }
+
+    /* Login */
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .login-box { width: 100%; max-width: 380px; }
+    .login-logo { text-align: center; margin-bottom: 28px; }
+    .login-logo h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; }
+    .login-logo h1 span { color: var(--orange); }
+    .login-logo p { font-size: 13px; color: var(--text-dim); margin-top: 5px; }
+    .form-group { margin-bottom: 12px; }
+    .form-label { display: block; font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
+    .form-input { width: 100%; background: var(--surface2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 15px; font-family: inherit; outline: none; transition: border-color 0.15s; }
+    .form-input:focus { border-color: rgba(255,77,26,0.5); }
+    .form-input::placeholder { color: var(--text-faint); }
+    .error-box { padding: 10px 14px; background: rgba(255,77,77,0.1); border: 1px solid rgba(255,77,77,0.3); border-radius: 10px; font-size: 13px; color: var(--red); margin-bottom: 14px; }
+
+    /* Loading / Empty */
+    .loading { text-align: center; padding: 80px 20px; color: var(--text-dim); }
+    .spin { width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--orange); border-radius: 50%; animation: spin 700ms linear infinite; margin: 0 auto 14px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-cell { text-align: center; padding: 40px 20px; color: var(--text-faint); }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  const AKK_API = (location.hostname === 'localhost' || location.protocol === 'file:')
+    ? 'http://localhost:3001/api'
+    : 'https://akktivate.onrender.com/api';
+
+  let token = localStorage.getItem('akk_token');
+  let adminEmail = null;
+  let usersData = [];
+  let statsData = {};
+  let deleteTarget = null;
+  let searchQuery = '';
+  let loading = false;
+  let errorMsg = '';
+
+  // ── Helpers ─────────────────────────────────────────────────────
+  const COLORS = ['#FF4D1A','#FF8C1A','#FFB31A','#5DC9F2','#A78BFA','#C6FF3D','#FF6E6E','#F472B6'];
+  function avatarColor(name) {
+    let h = 0;
+    for (let i = 0; i < (name || '').length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return COLORS[h % COLORS.length];
+  }
+  function initials(name) {
+    return (name || '').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+  }
+  function timeAgo(iso) {
+    if (!iso) return '—';
+    const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (diff < 60) return 'Ahora';
+    if (diff < 3600) return `${Math.round(diff / 60)}m`;
+    if (diff < 86400) return `${Math.round(diff / 3600)}h`;
+    if (diff < 172800) return 'Ayer';
+    const d = Math.round(diff / 86400);
+    if (d < 7) return `${d}d`;
+    if (d < 30) return `${Math.round(d / 7)} sem`;
+    return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  }
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  function isRecentLogin(iso) {
+    if (!iso) return false;
+    return (Date.now() - new Date(iso).getTime()) < 7 * 86400 * 1000;
+  }
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Render ───────────────────────────────────────────────────────
+  function render() {
+    const root = document.getElementById('root');
+    if (!root) return;
+    if (!token) { root.innerHTML = renderLogin(); bindLogin(); }
+    else if (loading) { root.innerHTML = `<div class="loading"><div class="spin"></div>Cargando panel…</div>`; }
+    else if (errorMsg) {
+      root.innerHTML = `<div class="loading">
+        <div style="font-size:44px;margin-bottom:16px;">🚫</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px;">${esc(errorMsg)}</div>
+        <button class="btn btn-logout" style="margin-top:16px;" onclick="logout()">Cerrar sesión</button>
+      </div>`;
+    } else { root.innerHTML = renderPanel(); }
+
+    // Modal overlay (outside root so it's always on top)
+    const existing = document.getElementById('modal-overlay');
+    if (existing) existing.remove();
+    if (deleteTarget) {
+      document.body.insertAdjacentHTML('beforeend', renderModal());
+    }
+  }
+
+  function renderLogin() {
+    return `
+      <div class="login-wrap">
+        <div class="login-box">
+          <div class="login-logo">
+            <h1>Akkti<span>vate</span></h1>
+            <p>Panel de administración</p>
+          </div>
+          <div class="card" style="padding:24px;">
+            <div id="login-error"></div>
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input class="form-input" type="email" id="login-email" placeholder="admin@email.com" autocomplete="email"/>
+            </div>
+            <div class="form-group" style="margin-bottom:20px;">
+              <label class="form-label">Contraseña</label>
+              <input class="form-input" type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"/>
+            </div>
+            <button class="btn btn-primary" id="login-btn" onclick="doLogin()">Entrar al panel</button>
+          </div>
+          <p style="text-align:center;margin-top:16px;font-size:12px;color:var(--text-faint);">
+            Solo accesible para administradores
+          </p>
+        </div>
+      </div>`;
+  }
+
+  function renderPanel() {
+    const q = searchQuery.toLowerCase();
+    const filtered = q
+      ? usersData.filter(u =>
+          (u.name || '').toLowerCase().includes(q) ||
+          (u.email || '').toLowerCase().includes(q) ||
+          (u.location || '').toLowerCase().includes(q))
+      : usersData;
+
+    return `
+      <div class="header">
+        <div class="header-logo">
+          <span>Akktivate</span>
+          <div class="badge-admin">Admin</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:12px;color:var(--text-dim);display:none;" id="admin-greeting"></span>
+          <button class="btn btn-logout" onclick="logout()">Cerrar sesión</button>
+        </div>
+      </div>
+
+      <div class="main">
+        <!-- Stats row -->
+        <div class="stats-grid">
+          <div class="card stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-label">Usuarios</div>
+            <div class="stat-value">${statsData.totalUsers ?? '—'}</div>
+            <div class="stat-sub">registrados en total</div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-icon">🟢</div>
+            <div class="stat-label">Activos hoy</div>
+            <div class="stat-value" style="color:var(--green);">${statsData.activeToday ?? '—'}</div>
+            <div class="stat-sub">login en las últimas 24h</div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-icon">📅</div>
+            <div class="stat-label">Activos 7 días</div>
+            <div class="stat-value">${statsData.activeLast7Days ?? '—'}</div>
+            <div class="stat-sub">login esta semana</div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-icon">🏃</div>
+            <div class="stat-label">Actividades</div>
+            <div class="stat-value">${statsData.totalActivities ?? '—'}</div>
+            <div class="stat-sub">registradas en total</div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-icon">📍</div>
+            <div class="stat-label">KM totales</div>
+            <div class="stat-value" style="font-size:26px;">${statsData.totalKm ?? '0'}<span style="font-size:14px;color:var(--text-dim);margin-left:3px;">km</span></div>
+            <div class="stat-sub">entre todos los usuarios</div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-icon">🆕</div>
+            <div class="stat-label">Nuevos 7d</div>
+            <div class="stat-value" style="color:var(--orange-bright);">${statsData.newThisWeek ?? '—'}</div>
+            <div class="stat-sub">registros esta semana</div>
+          </div>
+        </div>
+
+        <!-- Users -->
+        <div class="section-head">
+          <div class="section-title">Usuarios</div>
+          <span class="count-chip">${usersData.length}</span>
+        </div>
+        <input
+          class="search-input"
+          type="text"
+          placeholder="Buscar por nombre, email o ciudad…"
+          value="${esc(searchQuery)}"
+          oninput="onSearch(this.value)"
+        />
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Usuario</th>
+                <th>Proveedor</th>
+                <th>Ubicación</th>
+                <th>Nivel</th>
+                <th>KM</th>
+                <th>Acts.</th>
+                <th>Racha</th>
+                <th>Registro</th>
+                <th>Último acceso</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filtered.length === 0
+                ? `<tr><td colspan="11" class="empty-cell">Sin resultados</td></tr>`
+                : filtered.map(u => userRow(u)).join('')
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  function userRow(u) {
+    const isMe = u.email === adminEmail;
+    const active = isRecentLogin(u.last_login);
+    const col = avatarColor(u.name);
+    const provider = u.provider || 'email';
+    return `
+      <tr>
+        <td style="color:var(--text-faint);font-size:12px;">${u.id}</td>
+        <td>
+          <div class="user-cell">
+            <div class="avatar" style="background:${col};">${initials(u.name)}</div>
+            <div>
+              <div class="user-name">
+                ${esc(u.name)}
+                ${isMe ? '<span class="you-chip">TÚ</span>' : ''}
+              </div>
+              <div class="user-email">${esc(u.email)}</div>
+            </div>
+          </div>
+        </td>
+        <td><span class="provider provider-${esc(provider)}">${esc(provider)}</span></td>
+        <td style="color:var(--text-dim);font-size:12px;max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.location || '—')}</td>
+        <td><span class="level-badge">Nv. ${u.level}</span></td>
+        <td style="font-weight:700;">${(u.total_km || 0).toFixed(1)}</td>
+        <td style="color:var(--text-dim);">${u.total_activities || 0}</td>
+        <td style="color:var(--text-dim);">${u.streak || 0}🔥</td>
+        <td style="font-size:12px;color:var(--text-dim);">${fmtDate(u.created_at)}</td>
+        <td style="font-size:12px;white-space:nowrap;">
+          <span class="dot ${active ? 'dot-green' : 'dot-dim'}"></span>${timeAgo(u.last_login)}
+        </td>
+        <td>
+          ${!isMe
+            ? `<button class="btn btn-sm btn-delete" onclick="confirmDelete(${u.id}, '${esc(u.name).replace(/'/g,"\\'")}')">Eliminar</button>`
+            : ''}
+        </td>
+      </tr>`;
+  }
+
+  function renderModal() {
+    return `
+      <div class="modal-bg" id="modal-overlay" onclick="overlayClick(event)">
+        <div class="modal">
+          <div class="modal-title">⚠️ Eliminar usuario</div>
+          <div class="modal-text">
+            ¿Seguro que quieres eliminar a <strong>${esc(deleteTarget.name)}</strong>?<br>
+            Se borrarán todas sus actividades y datos. Esta acción no se puede deshacer.
+          </div>
+          <div class="modal-actions">
+            <button class="btn-cancel" onclick="cancelDelete()">Cancelar</button>
+            <button class="btn-confirm-delete" onclick="doDelete()">Eliminar</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ── Actions ──────────────────────────────────────────────────────
+  function bindLogin() {
+    const em = document.getElementById('login-email');
+    const pw = document.getElementById('login-pass');
+    if (em) em.addEventListener('keydown', e => e.key === 'Enter' && pw?.focus());
+    if (pw) pw.addEventListener('keydown', e => e.key === 'Enter' && doLogin());
+    em?.focus();
+  }
+
+  async function doLogin() {
+    const email = document.getElementById('login-email')?.value?.trim();
+    const pass = document.getElementById('login-pass')?.value;
+    const errEl = document.getElementById('login-error');
+    const btn = document.getElementById('login-btn');
+    if (!email || !pass) {
+      if (errEl) errEl.innerHTML = '<div class="error-box">Introduce email y contraseña</div>';
+      return;
+    }
+    if (btn) { btn.textContent = 'Entrando…'; btn.disabled = true; }
+    try {
+      const r = await fetch(`${AKK_API}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Error de acceso');
+      token = d.token;
+      localStorage.setItem('akk_token', token);
+      await loadAdmin();
+    } catch(e) {
+      if (errEl) errEl.innerHTML = `<div class="error-box">${esc(e.message)}</div>`;
+      if (btn) { btn.textContent = 'Entrar al panel'; btn.disabled = false; }
+    }
+  }
+
+  async function loadAdmin() {
+    loading = true; errorMsg = ''; render();
+    try {
+      const hdrs = { Authorization: `Bearer ${token}` };
+      const [sRes, uRes] = await Promise.all([
+        fetch(`${AKK_API}/admin/stats`, { headers: hdrs }),
+        fetch(`${AKK_API}/admin/users`, { headers: hdrs }),
+      ]);
+      if (sRes.status === 401) { logout(); return; }
+      if (sRes.status === 403) { loading = false; errorMsg = 'No tienes permisos de administrador.'; render(); return; }
+      if (!sRes.ok) throw new Error('Error del servidor ' + sRes.status);
+
+      statsData = await sRes.json();
+      usersData = await uRes.json();
+
+      // Resolve admin email from JWT userId
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const me = usersData.find(u => u.id === payload.userId);
+        if (me) { adminEmail = me.email; }
+      } catch(e) {}
+
+      loading = false; render();
+
+      // Show greeting after render
+      const g = document.getElementById('admin-greeting');
+      if (g && adminEmail) { g.textContent = adminEmail; g.style.display = 'block'; }
+
+    } catch(e) {
+      loading = false; errorMsg = 'Error al conectar con el servidor.'; render();
+    }
+  }
+
+  function onSearch(q) { searchQuery = q; render(); }
+
+  function confirmDelete(id, name) { deleteTarget = { id, name }; render(); }
+  function cancelDelete() { deleteTarget = null; render(); }
+  function overlayClick(e) { if (e.target.id === 'modal-overlay') cancelDelete(); }
+
+  async function doDelete() {
+    if (!deleteTarget) return;
+    const { id, name } = deleteTarget;
+    deleteTarget = null;
+    try {
+      const r = await fetch(`${AKK_API}/admin/users/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) { const d = await r.json(); alert(d.error || 'Error al eliminar'); render(); return; }
+      usersData = usersData.filter(u => u.id !== id);
+      if (statsData.totalUsers) statsData.totalUsers--;
+      render();
+    } catch(e) {
+      alert('Error: ' + e.message);
+      render();
+    }
+  }
+
+  function logout() {
+    token = null; adminEmail = null; statsData = {}; usersData = [];
+    errorMsg = ''; searchQuery = ''; loading = false;
+    // No borrar akk_token del localStorage para que la app principal siga logueada
+    render();
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────
+  if (token) { loadAdmin(); } else { render(); }
+</script>
+</body>
+</html>

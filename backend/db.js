@@ -83,6 +83,9 @@ db.exec(`
   );
 `);
 
+// Migraciones (columnas añadidas después del deploy inicial — SQLite no tiene IF NOT EXISTS para columnas)
+try { db.exec('ALTER TABLE users ADD COLUMN last_login TEXT'); } catch(e) {}
+
 // ── Helpers ──────────────────────────────────────────────────────
 
 const DIFF_MULT = { facil: 0.85, medio: 1.0, duro: 1.18, pro: 1.4 };

@@ -105,6 +105,7 @@ router.post('/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid)
       return res.status(401).json({ error: 'Email o contraseña incorrectos' });
+    db.prepare("UPDATE users SET last_login = datetime('now') WHERE id = ?").run(user.id);
     res.json({ token: makeToken(user.id), user: safeUser(user) });
   } catch (err) {
     console.error('login error:', err.message);
