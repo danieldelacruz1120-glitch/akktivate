@@ -1113,7 +1113,7 @@ function Dashboard({ onStartRoute, onAskAI, user, profile, isNewUser }) {
 
   const displayName = (user?.name || u.name).split(' ')[0];
   const initials = displayName.slice(0, 2).toUpperCase();
-  const locationLabel = ctx?.geo?.label || profile?.city || u.location;
+  const locationLabel = ctx?.geo?.label || profile?.city || (u.location && u.location !== 'Madrid · Retiro' ? u.location : null) || '';
   const weatherCode = ctx?.weather?.current?.weather_code;
   const temp = ctx?.weather?.current?.temperature_2m;
   const isDay = ctx?.weather?.current?.is_day !== 0;
@@ -1128,7 +1128,7 @@ function Dashboard({ onStartRoute, onAskAI, user, profile, isNewUser }) {
           <Avatar initials={initials} color={u.avatarColor} size={42} />
           <div>
             <div style={{ fontSize: 12, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <I name="location" size={11} /> {locationLabel}
+              <I name="location" size={11} /> {locationLabel || 'Detectando ubicación…'}
             </div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>Hola, {displayName}</div>
           </div>
@@ -4070,6 +4070,8 @@ window.AIInlineLauncher = AIInlineLauncher;
         xpToNext: apiUser.xpToNext,
         streak: apiUser.streak,
         location: apiUser.location || window.AKK_DATA.user.location,
+        locationLat: apiUser.locationLat,
+        locationLng: apiUser.locationLng,
         totals: apiUser.totals || window.AKK_DATA.user.totals,
         weekly: Object.assign({}, window.AKK_DATA.user.weekly, apiUser.weekly),
       });
@@ -4111,14 +4113,18 @@ window.AIInlineLauncher = AIInlineLauncher;
           const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
           const d = await r.json();
           const city = d.address?.city || d.address?.town || d.address?.village || d.address?.county || 'Mi ubicación';
-          const country = d.address?.country_code?.toUpperCase() || '';
-          const locationStr = country ? `${city} · ${country}` : city;
+          const region = d.address?.state || d.address?.county || '';
+          const locationStr = region ? `${city} · ${region}` : city;
           await fetch(AKK_API + '/user/me', {
             method: 'PUT',
             headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ location: locationStr, locationLat: lat, locationLng: lng }),
+            body: JSON.stringify({ location: locationStr, location_lat: lat, location_lng: lng }),
           });
-          if (window.AKK_DATA?.user) window.AKK_DATA.user.location = locationStr;
+          if (window.AKK_DATA?.user) {
+            window.AKK_DATA.user.location = locationStr;
+            window.AKK_DATA.user.locationLat = lat;
+            window.AKK_DATA.user.locationLng = lng;
+          }
         } catch(e) {}
       }, () => {}, { timeout: 8000 });
     },
