@@ -21,9 +21,9 @@ function safeUser(u) {
     xp: Number(u.xp),
     xpToNext: Number(u.xp_to_next),
     streak: Number(u.streak),
-    location: u.location,
-    locationLat: Number(u.location_lat) || 0,
-    locationLng: Number(u.location_lng) || 0,
+    location: (u.location && u.location !== 'Madrid · Retiro' && u.location !== 'Madrid') ? u.location : '',
+    locationLat: (u.location && u.location !== 'Madrid · Retiro') ? (Number(u.location_lat) || 0) : 0,
+    locationLng: (u.location && u.location !== 'Madrid · Retiro') ? (Number(u.location_lng) || 0) : 0,
     totals: {
       km: Number(u.total_km),
       activities: Number(u.total_activities),

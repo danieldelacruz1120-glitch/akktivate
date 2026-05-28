@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
 /* Akktivate — Design Tokens */
 :root {
@@ -357,6 +358,7 @@ button, .tap { -webkit-tap-highlight-color: transparent; }
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
 // Akktivate — mock data
 window.AKK_DATA = (() => {
@@ -382,7 +384,7 @@ window.AKK_DATA = (() => {
     xp: 14820,
     xpToNext: 16000,
     streak: 18,
-    location: "Madrid · Retiro",
+    location: "",
     totals: {
       km: 1247,
       activities: 168,
@@ -587,10 +589,12 @@ window.AKK_TOOLS = (() => {
     } catch (e) {
       // Fallback: usar la ubicación guardada del usuario si existe
       const _u = window.AKK_DATA?.user;
-      const _hasReal = _u?.locationLat && _u?.locationLng && _u?.location && _u.location !== 'Madrid · Retiro';
-      cache.pos = _hasReal ? { lat: _u.locationLat, lng: _u.locationLng } : { lat: 40.4153, lng: -3.6843 };
+      const _hasReal = _u?.locationLat && _u?.locationLng && _u?.location && _u.location !== 'Madrid · Retiro' && _u.location !== '';
+      cache.pos = _hasReal ? { lat: Number(_u.locationLat), lng: Number(_u.locationLng) } : null;
       cache.geo = { label: _hasReal ? _u.location : '' };
-      try { cache.weather = await getWeather(cache.pos.lat, cache.pos.lng); } catch (e) { cache.weather = null; }
+      if (cache.pos) {
+        try { cache.weather = await getWeather(cache.pos.lat, cache.pos.lng); } catch (e) { cache.weather = null; }
+      } else { cache.weather = null; }
       cache.ready = true;
       cache.real = false;
       cache.error = e.message || 'Sin permiso de GPS';
@@ -1366,6 +1370,72 @@ window.Dashboard = Dashboard;
 // routes.jsx — Akktivate Route Generator
 const { useState: useRStateRT, useEffect: useREffectRT, useMemo: useRMemoRT } = React;
 
+// ── Leaflet real map — renders actual OSRM route on OSM tiles ────
+function LeafletRouteMap({ polyline, waypointCoords, location }) {
+  const mapRef = React.useRef(null);
+  const leafletMap = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!mapRef.current || !window.L) return;
+    if (leafletMap.current) { leafletMap.current.remove(); leafletMap.current = null; }
+    if (!polyline || polyline.length < 2) return;
+
+    // polyline = [[lng, lat], ...] from OSRM — Leaflet needs [lat, lng]
+    const latLngs = polyline.map(([lng, lat]) => [lat, lng]);
+
+    const map = window.L.map(mapRef.current, {
+      zoomControl: false, scrollWheelZoom: false, attributionControl: false,
+    });
+
+    window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd', maxZoom: 19,
+    }).addTo(map);
+
+    const routeLine = window.L.polyline(latLngs, {
+      color: '#FF4D1A', weight: 4.5, opacity: 0.95,
+    }).addTo(map);
+
+    // Glow shadow
+    window.L.polyline(latLngs, { color: '#FF4D1A', weight: 10, opacity: 0.18 }).addTo(map);
+
+    // Start marker (green)
+    window.L.circleMarker(latLngs[0], {
+      radius: 9, fillColor: '#C6FF3D', color: '#080A0B', weight: 2.5, fillOpacity: 1,
+    }).addTo(map);
+
+    // Waypoint markers
+    if (waypointCoords && waypointCoords.length > 1) {
+      waypointCoords.slice(1).forEach(c => {
+        window.L.circleMarker([c.lat, c.lng], {
+          radius: 6, fillColor: '#FFB31A', color: '#080A0B', weight: 2, fillOpacity: 1,
+        }).addTo(map).bindPopup(`<b>${c.name}</b>`);
+      });
+    }
+
+    // End pulse marker
+    const last = latLngs[latLngs.length - 1];
+    window.L.circleMarker(last, {
+      radius: 8, fillColor: '#FF4D1A', color: '#080A0B', weight: 2.5, fillOpacity: 1,
+    }).addTo(map);
+
+    map.fitBounds(routeLine.getBounds(), { padding: [18, 18] });
+    leafletMap.current = map;
+
+    return () => { if (leafletMap.current) { leafletMap.current.remove(); leafletMap.current = null; } };
+  }, [polyline]);
+
+  return (
+    <div ref={mapRef} style={{ height: 280, width: '100%', background: '#080A0B', position: 'relative' }}>
+      {(!polyline || polyline.length < 2) && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-dim)', flexDirection: 'column', gap: 8 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid rgba(255,77,26,0.3)', borderTopColor: 'var(--orange)', animation: 'ringRotate 800ms linear infinite' }}/>
+          <span style={{ fontSize: 12 }}>Calculando ruta real…</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── SVG route map — generates a route based on params ──────────
 function RouteMap({ activity, distance, difficulty, animated = true, dark = true, location = 'Madrid' }) {
   // Seeded path generation
@@ -1876,7 +1946,10 @@ function RoutesScreen({ onAskAI, profile }) {
           }/>
           <div className="card" style={{ padding: 0, overflow: 'hidden', opacity: generating ? 0.5 : 1, transition: 'opacity 200ms' }}>
             <div style={{ position: 'relative' }}>
-              <RouteMap key={routeKey} activity={activity} distance={distance} difficulty={difficulty} animated={true} location={location}/>
+              {aiRoute?.polyline?.length > 0
+                ? <LeafletRouteMap key={routeKey} polyline={aiRoute.polyline} waypointCoords={aiRoute.coords} location={location}/>
+                : <RouteMap key={routeKey} activity={activity} distance={distance} difficulty={difficulty} animated={true} location={location}/>
+              }
               {generating && (
                 <div style={{
                   position: 'absolute', inset: 0,
@@ -1908,8 +1981,8 @@ function RoutesScreen({ onAskAI, profile }) {
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                <RouteMetric icon="route" label="Distancia" value={distance} unit="km"/>
-                <RouteMetric icon="clock" label="Tiempo" value={fmtTime(time)} unit=""/>
+                <RouteMetric icon="route" label="Distancia" value={aiRoute?.realDistance || distance} unit="km"/>
+                <RouteMetric icon="clock" label="Tiempo" value={fmtTime(aiRoute?.duration || time)} unit=""/>
                 <RouteMetric icon="elev" label="Desnivel" value={`+${elevation}`} unit="m"/>
                 <RouteMetric icon="kcal" label="Kcal" value={kcal} unit=""/>
               </div>
@@ -2559,6 +2632,109 @@ window.CommunityScreen = CommunityScreen;
 // profile.jsx — Akktivate Profile + Badge Gallery
 const { useState: useStateP } = React;
 
+// ── Settings Modal ─────────────────────────────────────────────────
+function SettingsModal({ onClose }) {
+  const D = window.AKK_DATA;
+  const u = D.user;
+  const [name, setName] = React.useState(u.name || '');
+  const [location, setLocation] = React.useState((u.location && u.location !== 'Madrid · Retiro') ? u.location : '');
+  const [weeklyGoal, setWeeklyGoal] = React.useState(u.weekly?.goal || 25);
+  const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+  const [err, setErr] = React.useState('');
+
+  async function save() {
+    setSaving(true); setErr('');
+    try {
+      const token = window.AKK_BRIDGE?.token;
+      const body = {};
+      if (name.trim() && name.trim() !== u.name) body.name = name.trim();
+      if (location.trim()) body.location = location.trim();
+      if (parseInt(weeklyGoal) > 0) body.weekly_km_goal = parseInt(weeklyGoal);
+
+      if (token && Object.keys(body).length > 0) {
+        const r = await fetch(window.AKK_BRIDGE.api + '/user/me', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Error al guardar'); }
+      }
+
+      // Update local state immediately
+      if (body.name) { u.name = body.name; u.initials = body.name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase(); }
+      if (body.location) u.location = body.location;
+      if (body.weekly_km_goal) u.weekly = Object.assign({}, u.weekly, { goal: body.weekly_km_goal });
+
+      setSaved(true);
+      setTimeout(() => { setSaved(false); onClose(); }, 900);
+    } catch(e) { setErr(e.message); }
+    setSaving(false);
+  }
+
+  const inputStyle = {
+    width: '100%', padding: '12px 14px',
+    background: 'var(--surface)', border: '1px solid var(--line-strong)',
+    borderRadius: 12, color: 'var(--text)',
+    fontFamily: 'var(--body)', fontSize: 15, fontWeight: 600,
+    outline: 'none', boxSizing: 'border-box',
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 999,
+      background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)',
+      display: 'flex', alignItems: 'flex-end',
+    }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{
+        background: 'var(--bg-elev)', borderRadius: '24px 24px 0 0',
+        padding: '28px 24px 40px', width: '100%',
+        border: '1px solid var(--line)',
+        animation: 'screenIn 260ms cubic-bezier(0.2,0.9,0.3,1)',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <div className="h-title" style={{ fontSize: 20 }}>Ajustes de perfil</div>
+          <button onClick={onClose} style={{
+            width: 34, height: 34, borderRadius: 10,
+            background: 'var(--surface-2)', border: '1px solid var(--line)',
+            color: 'var(--text-dim)', cursor: 'pointer', fontSize: 20, lineHeight: 1,
+          }}>×</button>
+        </div>
+
+        {/* Name */}
+        <div style={{ marginBottom: 14 }}>
+          <div className="label" style={{ marginBottom: 6 }}>Nombre</div>
+          <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder="Tu nombre"/>
+        </div>
+
+        {/* Location */}
+        <div style={{ marginBottom: 14 }}>
+          <div className="label" style={{ marginBottom: 6 }}>Ubicación</div>
+          <input value={location} onChange={e => setLocation(e.target.value)}
+            placeholder="Ej. Trujillo · Extremadura" style={inputStyle}/>
+          <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 4 }}>
+            También puedes usar el botón GPS en tu perfil
+          </div>
+        </div>
+
+        {/* Weekly goal */}
+        <div style={{ marginBottom: 24 }}>
+          <div className="label" style={{ marginBottom: 6 }}>Meta semanal (km)</div>
+          <input type="number" min="1" max="500" value={weeklyGoal}
+            onChange={e => setWeeklyGoal(e.target.value)} style={inputStyle}/>
+        </div>
+
+        {err && <div style={{ fontSize: 12, color: '#FF6E3D', marginBottom: 12 }}>{err}</div>}
+
+        <button onClick={save} disabled={saving} className="btn btn-primary" style={{ width: '100%' }}>
+          {saved ? '¡Guardado!' : saving ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Comprime la imagen a 80×80px JPEG (~5KB) para guardar en BD y localStorage
 function compressAvatar(dataUrl) {
   return new Promise(resolve => {
@@ -2585,10 +2761,12 @@ function ProfileScreen({ onLogout, user, profile, isNewUser }) {
   const displayName = user?.name || baseUser.name;
   const initials = displayName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || 'A';
   const email = user?.email || baseUser.handle;
-  const registeredCity = profile?.city || window.AKK_DATA?.user?.location || '';
-  const [currentLocation, setCurrentLocation] = useStateP(null); // overrides registered if set
+  const loc = window.AKK_DATA?.user?.location || '';
+  const registeredCity = profile?.city || (loc !== 'Madrid · Retiro' ? loc : '');
+  const [currentLocation, setCurrentLocation] = useStateP(null);
   const [locating, setLocating] = useStateP(false);
   const [locError, setLocError] = useStateP(null);
+  const [showSettings, setShowSettings] = useStateP(false);
   const cityLabel = currentLocation?.label || registeredCity;
   const u = isNewUser ? {
     ...baseUser, name: displayName, initials,
@@ -2696,17 +2874,26 @@ function ProfileScreen({ onLogout, user, profile, isNewUser }) {
           pointerEvents: 'none',
         }}/>
         <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-          <button style={{
+          <button onClick={() => {
+            const ud = window.AKK_DATA?.user;
+            const txt = `¡Entrena conmigo en Akktivate! ${ud?.name || ''} · Nivel ${ud?.level || 1} · ${Number(ud?.totals?.km || 0).toFixed(0)} km acumulados`;
+            if (navigator.share) {
+              navigator.share({ title: 'Akktivate', text: txt, url: 'https://danieldelacruz1120-glitch.github.io/akktivate' }).catch(()=>{});
+            } else {
+              navigator.clipboard?.writeText(txt + '\nhttps://danieldelacruz1120-glitch.github.io/akktivate').then(() => alert('¡Enlace copiado!')).catch(()=>{});
+            }
+          }} style={{
             width: 36, height: 36, borderRadius: 10,
             background: 'var(--surface)', border: '1px solid var(--line)',
             color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
           }}><I name="share" size={16}/></button>
-          <button style={{
+          <button onClick={() => setShowSettings(true)} style={{
             width: 36, height: 36, borderRadius: 10,
             background: 'var(--surface)', border: '1px solid var(--line)',
             color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
           }}><I name="settings" size={16}/></button>
         </div>
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)}/>}
 
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
           <input ref={fileInputRef} type="file" accept="image/*" onChange={onAvatarFile} style={{ display: 'none' }}/>
@@ -4154,9 +4341,9 @@ window.AIInlineLauncher = AIInlineLauncher;
         xp: apiUser.xp,
         xpToNext: apiUser.xpToNext,
         streak: apiUser.streak,
-        location: apiUser.location || window.AKK_DATA.user.location,
-        locationLat: apiUser.locationLat,
-        locationLng: apiUser.locationLng,
+        location: (apiUser.location && apiUser.location !== 'Madrid · Retiro') ? apiUser.location : '',
+        locationLat: apiUser.locationLat || 0,
+        locationLng: apiUser.locationLng || 0,
         avatarUrl: apiUser.avatarUrl || localStorage.getItem('akk_avatar_' + apiUser.id) || null,
         totals: apiUser.totals || window.AKK_DATA.user.totals,
         weekly: Object.assign({}, window.AKK_DATA.user.weekly, apiUser.weekly),
